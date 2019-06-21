@@ -65,9 +65,6 @@ class NeuralNetwork(object):
             self.num_classes = 10
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('fashion_mnist-big', project)
                       
-        elif 'cifar' in dataset.lower():
-            self.num_classes = 10
-            self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('cifar10', project)
         
         
         # Initialize Tf and Keras
@@ -242,22 +239,6 @@ class NeuralNetwork(object):
             
             self.input_side = 200
             self.input_channels = 1
-            self.input_dim = self.input_side * self.input_side * self.input_channels
-            
-          
-        elif dataset == 'cifar10':
-            (X_train, Y_train), (X_test, Y_test) = cifar10.load_data()
-            X_train = X_train.reshape(-1, 32, 32, 3)
-            X_test = X_test.reshape(-1, 32, 32, 3)
-            Y_train = Y_train.reshape((Y_train.shape[0],))
-            Y_test = Y_test.reshape((Y_test.shape[0],))
-                       
-            #Convert to one hot
-            Y_train = np_utils.to_categorical(Y_train, 10)
-            Y_test = np_utils.to_categorical(Y_test, 10)
-            
-            self.input_side = 32
-            self.input_channels = 3
             self.input_dim = self.input_side * self.input_side * self.input_channels
             
             

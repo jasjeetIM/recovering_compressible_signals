@@ -65,21 +65,6 @@ class CNN(NeuralNetwork):
                 Activation('softmax')
             ]
         
-        
-        elif dataset.lower() == 'cifar2':
-            layers = [
-                Conv2D(32, (3, 3), padding='same', input_shape=(self.input_side, self.input_side, self.input_channels), name='conv1'),
-                Activation(self.non_linearity),
-                Conv2D(64, (3, 3), padding='same', name='conv2'),
-                Activation(self.non_linearity),
-                Flatten(),
-                Dropout(self.dropout_prob),
-                Dense(256, kernel_regularizer=l2(0.01), bias_regularizer=l2(0.01), name='dense1'),
-                Activation(self.non_linearity),
-                Dropout(self.dropout_prob),
-                Dense(self.num_classes, name='logits'),
-                Activation('softmax')
-            ]    
             
         model = Sequential()
         for layer in layers:
