@@ -4,6 +4,7 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 import os, time, math
+import keras
 from keras import backend as K
 from keras import regularizers
 from keras.regularizers import l2
@@ -64,7 +65,26 @@ class CNN(NeuralNetwork):
                 Dense(self.num_classes, name='logits'),
                 Activation('softmax')
             ]
-        
+        elif dataset.lower() == 'cifar10':
+            layers = [
+                Conv2D(32, (3, 3), padding='same', input_shape=(self.input_side, self.input_side, self.input_channels), name='conv1'),
+                Activation(self.non_linearity),
+                Conv2D(32, (3, 3), name='conv2'),
+                Activation(self.non_linearity),
+                MaxPooling2D(pool_size=(2, 2)),
+                Dropout(self.dropout_prob),
+                Conv2D(64, (3, 3), padding='same'),
+                Activation(self.non_linearity),
+                Conv2D(64, (3, 3)),
+                MaxPooling2D(pool_size=(2, 2)),
+                Dropout(self.dropout_prob),
+                Flatten(),
+                Dense(512, name='dense1'),
+                Activation(self.non_linearity),
+                Dropout(self.dropout_prob),
+                Dense(self.num_classes, name='logits'),
+                Activation('softmax')
+            ]
             
         model = Sequential()
         for layer in layers:
@@ -122,11 +142,19 @@ class CNN(NeuralNetwork):
         preds = self.sess.run(self.preds, feed_dict=feed_dict)
         return preds
         
-    def compile_model(self):
+    def compile_model(self, dataset='mnist'):
         """
         Initialize the model
         """
-        self.model.compile(loss='categorical_crossentropy',
+        if dataset == 'cifar10':
+            opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+
+            self.model.compile(loss='categorical_crossentropy',
+                  optimizer=opt,
+                  metrics=['accuracy'])
+             
+        else:
+            self.model.compile(loss='categorical_crossentropy',
               optimizer='adadelta',
               metrics=['accuracy'])
         

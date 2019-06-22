@@ -57,6 +57,10 @@ class NeuralNetwork(object):
             self.num_classes = 10
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('fashion_mnist', project)
             
+        elif dataset.lower() == 'cifar10':
+            self.num_classes = 10
+            self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('cifar10', project)
+            
         elif dataset.lower() == 'mnist-big':
             self.num_classes = 10
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('mnist-big', project)
@@ -100,7 +104,10 @@ class NeuralNetwork(object):
         
         #Load model parameters from file or initialize 
         if load_from_file == False:
-            self.compile_model()
+            if dataset.lower() == 'cifar10':
+                self.compile_model(dataset)
+            else:
+                self.compile_model()
         else:
             self.load_model(load_model_path, load_weights_path)
         return
@@ -108,7 +115,7 @@ class NeuralNetwork(object):
     def project_images(self,X,k):
         n = X.shape[1]
         x_rec = np.zeros((X.shape))
-        if self.transform == 'dft':
+        if self.transform == 'dft-2d':
             for i in range(X.shape[0]):
                 f_x = np.fft.fft2(X[i,:,:,0], norm='ortho')
                 top_k = get_top_k(f_x,k=k)
@@ -116,14 +123,8 @@ class NeuralNetwork(object):
                 x_rec[i,:,:,0]= f_recon
         elif self.transform == 'dct-matrix':
             #Form the DCT matrix
-            D = np.zeros((n*n,n*n))
-            for p in range(n*n):
-                for q in range(n*n):
-                    if p == 0:
-                        D[p,q] = 1/np.sqrt(float(n*n))
-                    else:
-                        D[p,q] = np.sqrt(2/float(n*n))*(  math.cos(  (math.pi*(2*q + 1)*p) / (2*float(n*n))   )    )
-        
+            D = get_matrix(n*n,tf='dct')
+           
             for i in range(X.shape[0]):
                 f_x = np.dot(D,X[i,:,:,0].flatten())
                 f_x = f_x.reshape(int(n),int(n))
@@ -131,13 +132,21 @@ class NeuralNetwork(object):
                 f_recon = np.dot(D.T,top_k.flatten()).reshape(int(n),int(n))  
              
                 x_rec[i,:,:,0]= f_recon
-        elif self.transform=='dct':
+        elif self.transform=='dct-2d':
             for i in range(X.shape[0]):
                 f_x = dct(dct(X[i,:,:,0].T, norm='ortho').T,norm='ortho')
                 top_k = get_top_k(f_x,k=k)
                 f_recon = idct(idct(top_k.T, norm='ortho').T,norm='ortho')
                 x_rec[i,:,:,0]= f_recon
-        
+                
+        elif self.transform=='dct-3d':
+            D = get_matrix(n*n*3,tf='dct')
+            for i in range(X.shape[0]):
+                f_x = np.dot(D,X[i,:,:,:].flatten())
+                top_k = get_topk_vec(f_x,k=k)
+                f_recon = np.dot(D.T,top_k).reshape(int(n),int(n),3)  
+                x_rec[i,:,:,:]= f_recon
+
         x_all = np.concatenate((X,x_rec), axis=0)
         
         return x_all
@@ -173,6 +182,18 @@ class NeuralNetwork(object):
             
             self.input_side = 28
             self.input_channels = 1
+            self.input_dim = self.input_side * self.input_side * self.input_channels
+            
+            
+        elif dataset == 'cifar10':
+            (X_train, Y_train), (X_test, Y_test) = cifar10.load_data()
+            X_train = X_train.reshape(-1, 32, 32, 3)
+            X_test = X_test.reshape(-1, 32, 32, 3)
+            Y_train = np_utils.to_categorical(Y_train, 10)
+            Y_test = np_utils.to_categorical(Y_test, 10)
+            
+            self.input_side = 32
+            self.input_channels = 3
             self.input_dim = self.input_side * self.input_side * self.input_channels
             
         elif dataset == 'mnist-big':
@@ -249,7 +270,6 @@ class NeuralNetwork(object):
         X_train /= 255
         X_test /= 255
         
-     
         
         num_val = int(X_test.shape[0]/2.0)
         
