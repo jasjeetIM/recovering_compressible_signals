@@ -9,6 +9,10 @@ from PIL import Image
 
 import tensorflow as tf
 from keras.datasets import cifar10, mnist, fashion_mnist
+from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler
+from keras.callbacks import ReduceLROnPlateau
+from keras.preprocessing.image import ImageDataGenerator
 from cleverhans.utils_keras import KerasModelWrapper
 from cleverhans.attacks import CarliniWagnerL2, CarliniWagnerL0, BasicIterativeMethod, DeepFool, SaliencyMapMethod, FastGradientMethod, MadryEtAl
 
@@ -24,7 +28,7 @@ class NeuralNetwork(object):
     """General Neural Network Class for multi-class classification """
     SEED = 14
     
-    def __init__(self, model_name=None, dataset='mnist', project=True, transform='dft', batch_size=512, initial_learning_rate=8e-1, load_from_file=False, load_model_path='', load_weights_path='', seed=14):
+    def __init__(self, model_name=None, dataset='mnist', project=True, transform='dct', batch_size=128, initial_learning_rate=8e-1, load_from_file=False, load_model_path='', load_weights_path='', seed=14):
         """
         Desc:
             Constructor
@@ -45,28 +49,32 @@ class NeuralNetwork(object):
         
         
         self.model_name = model_name
-        self.batch_size = batch_size
         self.transform = transform
         self.initial_learning_rate = initial_learning_rate
         
         if dataset.lower() == 'mnist':
             self.num_classes = 10
+            self.batch_size = batch_size
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('mnist', project)
         
         elif dataset.lower() == 'fashion_mnist':
             self.num_classes = 10
+            self.batch_size = batch_size
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('fashion_mnist', project)
             
         elif dataset.lower() == 'cifar10':
             self.num_classes = 10
+            self.batch_size = 32
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('cifar10', project)
             
         elif dataset.lower() == 'mnist-big':
             self.num_classes = 10
+            self.batch_size = batch_size
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('mnist-big', project)
         
         elif dataset.lower() == 'fashion_mnist-big':
             self.num_classes = 10
+            self.batch_size = batch_size
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('fashion_mnist-big', project)
                       
         
@@ -115,23 +123,26 @@ class NeuralNetwork(object):
     def project_images(self,X,k):
         n = X.shape[1]
         x_rec = np.zeros((X.shape))
-        if self.transform == 'dft-2d':
+        
+        #Transform data
+        if self.transform == 'dct':
             for i in range(X.shape[0]):
-                f_x = np.fft.fft2(X[i,:,:,0], norm='ortho')
+                f_x = dct(X[i,:,:,0].flatten(),norm='ortho')
+                f_x = f_x.reshape(int(n),int(n))
                 top_k = get_top_k(f_x,k=k)
-                f_recon = np.fft.ifft2(top_k,norm='ortho')
-                x_rec[i,:,:,0]= f_recon
+                f_recon = idct(top_k.flatten(),norm='ortho').reshape(int(n),int(n))
+                x_rec[i,:,:,0]= f_recon                       
+        
         elif self.transform == 'dct-matrix':
             #Form the DCT matrix
-            D = get_matrix(n*n,tf='dct')
-           
+            D = get_matrix(n*n,tf='dct')          
             for i in range(X.shape[0]):
                 f_x = np.dot(D,X[i,:,:,0].flatten())
                 f_x = f_x.reshape(int(n),int(n))
                 top_k = get_top_k(f_x,k=k)
-                f_recon = np.dot(D.T,top_k.flatten()).reshape(int(n),int(n))  
-             
+                f_recon = np.dot(D.T,top_k.flatten()).reshape(int(n),int(n))               
                 x_rec[i,:,:,0]= f_recon
+                
         elif self.transform=='dct-2d':
             for i in range(X.shape[0]):
                 f_x = dct(dct(X[i,:,:,0].T, norm='ortho').T,norm='ortho')
@@ -140,12 +151,20 @@ class NeuralNetwork(object):
                 x_rec[i,:,:,0]= f_recon
                 
         elif self.transform=='dct-3d':
-            D = get_matrix(n*n*3,tf='dct')
             for i in range(X.shape[0]):
-                f_x = np.dot(D,X[i,:,:,:].flatten())
-                top_k = get_topk_vec(f_x,k=k)
-                f_recon = np.dot(D.T,top_k).reshape(int(n),int(n),3)  
-                x_rec[i,:,:,:]= f_recon
+                f_x_r = dct(X[i,:,:,0].flatten(),norm='ortho').reshape(int(n),int(n))
+                f_x_g = dct(X[i,:,:,1].flatten(),norm='ortho').reshape(int(n),int(n))
+                f_x_b = dct(X[i,:,:,2].flatten(),norm='ortho').reshape(int(n),int(n))
+                top_k_r = get_top_k(f_x_r,k=k)
+                top_k_g = get_top_k(f_x_g,k=k)
+                top_k_b = get_top_k(f_x_b,k=k)
+                f_recon_r = idct(top_k_r.flatten(),norm='ortho').reshape(int(n),int(n))
+                f_recon_g = idct(top_k_g.flatten(),norm='ortho').reshape(int(n),int(n))
+                f_recon_b = idct(top_k_b.flatten(),norm='ortho').reshape(int(n),int(n))
+  
+                x_rec[i,:,:,0]= f_recon_r
+                x_rec[i,:,:,1]= f_recon_g
+                x_rec[i,:,:,2]= f_recon_b
 
         x_all = np.concatenate((X,x_rec), axis=0)
         
@@ -168,9 +187,7 @@ class NeuralNetwork(object):
             self.input_side = 28
             self.input_channels = 1
             self.input_dim = self.input_side * self.input_side * self.input_channels
-            
-           
-                       
+                                 
             
         elif dataset == 'fashion_mnist':
             (X_train, Y_train), (X_test, Y_test) = fashion_mnist.load_data()
@@ -204,13 +221,13 @@ class NeuralNetwork(object):
             Y_train = np_utils.to_categorical(Y_train, 10)
             Y_test = np_utils.to_categorical(Y_test, 10)
             
-            X_train = np.zeros((X_train_sm.shape[0],200,200,1))
-            X_test = np.zeros((X_test_sm.shape[0],200,200,1))
+            X_train = np.zeros((X_train_sm.shape[0],125,125,1))
+            X_test = np.zeros((X_test_sm.shape[0],125,125,1))
             
             for i in range(X_train.shape[0]):
                 img = X_train_sm[i,:,:,0]
                 img = Image.fromarray(img)
-                basewidth = 200
+                basewidth = 125
                 wpercent = (basewidth/float(img.size[0]))
                 hsize = int((float(img.size[1])*float(wpercent)))
                 img = img.resize((basewidth,hsize), Image.ANTIALIAS)
@@ -219,13 +236,13 @@ class NeuralNetwork(object):
             for i in range(X_test.shape[0]):
                 img = X_test_sm[i,:,:,0]
                 img = Image.fromarray(img)
-                basewidth = 200
+                basewidth = 125
                 wpercent = (basewidth/float(img.size[0]))
                 hsize = int((float(img.size[1])*float(wpercent)))
                 img = img.resize((basewidth,hsize), Image.ANTIALIAS)
                 X_test[i,:,:,0] = np.asarray(img)
             
-            self.input_side = 200
+            self.input_side = 125
             self.input_channels = 1
             self.input_dim = self.input_side * self.input_side * self.input_channels
         
@@ -237,13 +254,13 @@ class NeuralNetwork(object):
             Y_train = np_utils.to_categorical(Y_train, 10)
             Y_test = np_utils.to_categorical(Y_test, 10)
             
-            X_train = np.zeros((X_train_sm.shape[0],200,200,1))
-            X_test = np.zeros((X_test_sm.shape[0],200,200,1))
+            X_train = np.zeros((X_train_sm.shape[0],125,125,1))
+            X_test = np.zeros((X_test_sm.shape[0],125,125,1))
             
             for i in range(X_train.shape[0]):
                 img = X_train_sm[i,:,:,0]
                 img = Image.fromarray(img)
-                basewidth = 200
+                basewidth = 125
                 wpercent = (basewidth/float(img.size[0]))
                 hsize = int((float(img.size[1])*float(wpercent)))
                 img = img.resize((basewidth,hsize), Image.ANTIALIAS)
@@ -252,17 +269,16 @@ class NeuralNetwork(object):
             for i in range(X_test.shape[0]):
                 img = X_test_sm[i,:,:,0]
                 img = Image.fromarray(img)
-                basewidth = 200
+                basewidth = 125
                 wpercent = (basewidth/float(img.size[0]))
                 hsize = int((float(img.size[1])*float(wpercent)))
                 img = img.resize((basewidth,hsize), Image.ANTIALIAS)
                 X_test[i,:,:,0] = np.asarray(img)
             
-            self.input_side = 200
+            self.input_side = 125
             self.input_channels = 1
             self.input_dim = self.input_side * self.input_side * self.input_channels
-            
-            
+                      
     
         #Normalize data
         X_train = X_train.astype('float32')
@@ -285,19 +301,27 @@ class NeuralNetwork(object):
         Y_test = Y_test[mask]
         
         if project:
+            if dataset=='cifar10':
+                k = 75
+            elif 'mnist' in dataset.lower():
+                k = 40
+            
+            #Project and concatenate data
             X_train = self.project_images(X_train,k)
             X_val = self.project_images(X_val,k)
                          
-        y_train = np.zeros(Y_train.shape)                
-        y_train[:,:] = Y_train[:,:]
-        y_train_all = np.concatenate((Y_train,y_train), axis=0)
+            y_train = np.zeros(Y_train.shape)                
+            y_train[:,:] = Y_train[:,:]       
+            y_train_all = np.concatenate((Y_train,y_train), axis=0)
                          
-        y_val = np.zeros(Y_val.shape)
+            y_val = np.zeros(Y_val.shape)
                          
-        y_val[:,:] = Y_val[:,:]
-        y_val_all = np.concatenate((Y_val,y_val), axis=0)
+            y_val[:,:] = Y_val[:,:]
+            y_val_all = np.concatenate((Y_val,y_val), axis=0)
             
-        return X_train, y_train_all, X_val, y_val_all, X_test, Y_test
+            return X_train, y_train_all, X_val, y_val_all, X_test, Y_test
+        else:
+            return X_train, Y_train, X_val, Y_val, X_test, Y_test
     
 
     def get_loss_op(self, logits, labels):
@@ -308,23 +332,80 @@ class NeuralNetwork(object):
         out = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
         return out
     
-    def train(self, epochs):
+    def train(self, epochs, use_aug=False):
         """
         Desc:
             Trains model for a specified number of epochs.
         """    
-       
-        self.model.fit(
-            self.train_data, 
-            self.train_labels,
-            epochs=epochs,
-            batch_size=128,
-            validation_data=(self.val_data, self.val_labels),
-            verbose=1,
-            shuffle=True
-        )
+        if use_aug:
+            
+            datagen = ImageDataGenerator(
+            # set input mean to 0 over the dataset
+            featurewise_center=False,
+            # set each sample mean to 0
+            samplewise_center=False,
+            # divide inputs by std of dataset
+            featurewise_std_normalization=False,
+            # divide each input by its std
+            samplewise_std_normalization=False,
+            # apply ZCA whitening
+            zca_whitening=False,
+            # epsilon for ZCA whitening
+            zca_epsilon=1e-06,
+            # randomly rotate images in the range (deg 0 to 180)
+            rotation_range=0,
+            # randomly shift images horizontally
+            width_shift_range=0.1,
+            # randomly shift images vertically
+            height_shift_range=0.1,
+            # set range for random shear
+            shear_range=0.,
+            # set range for random zoom
+            zoom_range=0.,
+            # set range for random channel shifts
+            channel_shift_range=0.,
+            # set mode for filling points outside the input boundaries
+            fill_mode='nearest',
+            # value used for fill_mode = "constant"
+            cval=0.,
+            # randomly flip images
+            horizontal_flip=True,
+            # randomly flip images
+            vertical_flip=False,
+            # set rescaling factor (applied before any other transformation)
+            rescale=None,
+            # set function that will be applied on each input
+            preprocessing_function=None,
+            # image data format, either "channels_first" or "channels_last"
+            data_format=None,
+            # fraction of images reserved for validation (strictly between 0 and 1)
+            validation_split=0.0)
 
-        self.model.evaluate(self.test_data, self.test_labels, batch_size=self.batch_size)
+            # Compute quantities required for featurewise normalization
+            # (std, mean, and principal components if ZCA whitening is applied).
+            datagen.fit(self.train_data)
+
+            # Fit the model on the batches generated by datagen.flow().
+            self.model.fit_generator(datagen.flow(self.train_data, self.train_labels, batch_size=self.batch_size),
+                        validation_data=(self.val_data, self.val_labels),
+                        epochs=epochs, steps_per_epoch=len(self.train_data)/self.batch_size,verbose=1,
+                        callbacks=callbacks) 
+                        
+            self.model.evaluate(self.test_data, self.test_labels, batch_size=self.batch_size)
+
+
+        else:
+            self.model.fit(
+                self.train_data, 
+                self.train_labels,
+                epochs=epochs,
+                batch_size=128,
+                validation_data=(self.val_data, self.val_labels),
+                verbose=1,
+                shuffle=True
+            )
+
+            self.model.evaluate(self.test_data, self.test_labels, batch_size=self.batch_size)
         
 
     def get_gradients_wrt_params(self, X, Y):
