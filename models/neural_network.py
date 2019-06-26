@@ -49,6 +49,7 @@ class NeuralNetwork(object):
         
         
         self.model_name = model_name
+        self.dataset = dataset
         self.transform = transform
         self.initial_learning_rate = initial_learning_rate
         
@@ -204,8 +205,7 @@ class NeuralNetwork(object):
             
         elif dataset == 'cifar10':
             (X_train, Y_train), (X_test, Y_test) = cifar10.load_data()
-            X_train = X_train.reshape(-1, 32, 32, 3)
-            X_test = X_test.reshape(-1, 32, 32, 3)
+            
             Y_train = np_utils.to_categorical(Y_train, 10)
             Y_test = np_utils.to_categorical(Y_test, 10)
             
@@ -286,6 +286,10 @@ class NeuralNetwork(object):
         X_train /= 255
         X_test /= 255
         
+        if dataset.lower() == 'cifar10':
+            X_train_mean = np.mean(X_train, axis=0)
+            X_train -= X_train_mean
+            X_test -= X_train_mean
         
         num_val = int(X_test.shape[0]/2.0)
         
@@ -465,11 +469,13 @@ class NeuralNetwork(object):
             attack: FGMS or CW
         
         """
-        
+        if self.dataset == 'cifar10':
+            model = KerasModelWrapper(self.model)
+        else:
+            model = KerasModelWrapper(self.model.model)
         if attack == 'CW-l2':
             K.set_learning_phase(0)
             # Instantiate a CW attack object
-            model = KerasModelWrapper(self.model.model)
             cw = CarliniWagnerL2(model, sess=self.sess)
             yname = 'y'
             
@@ -488,7 +494,6 @@ class NeuralNetwork(object):
         elif attack == 'CW-l0':
             K.set_learning_phase(0)
             # Instantiate a CW attack object
-            model = KerasModelWrapper(self.model.model)
             cw = CarliniWagnerL0(model, sess=self.sess)
             yname = 'y'
             
@@ -506,14 +511,12 @@ class NeuralNetwork(object):
             
         elif attack == 'DF':
             K.set_learning_phase(0)
-            model = KerasModelWrapper(self.model.model)
             df = DeepFool(model, sess=self.sess)
             df_params = {'nb_candidate': nb_candidate}
             x_adv = df.generate_np(x,**df_params)
-
+        
         elif attack == 'JSMA':
             K.set_learning_phase(0)
-            model = KerasModelWrapper(self.model.model)
             jsma = SaliencyMapMethod(model,sess=self.sess)
             jsma_params = {'theta': 1., 
                            'gamma': 0.03,
@@ -525,8 +528,7 @@ class NeuralNetwork(object):
         elif attack == 'FGSM':
             K.set_learning_phase(0)
             # Instantiate a CW attack object
-            fgsm_model = KerasModelWrapper(self.model.model)
-            fgsm = FastGradientMethod(fgsm_model, sess=self.sess)
+            fgsm = FastGradientMethod(model, sess=self.sess)
            
             fgsm_params = {'eps':0.3,
                        'ord':np.inf,
@@ -540,9 +542,7 @@ class NeuralNetwork(object):
 
         elif attack == 'BIM':
             K.set_learning_phase(0)
-            # Instantiate a CW attack object
-            bim_model = KerasModelWrapper(self.model.model)
-            bim = BasicIterativeMethod(bim_model, sess=self.sess)
+            bim = BasicIterativeMethod(model, sess=self.sess)
             bim_params = { 'eps':0.3,
                    'eps_iter':0.03,
                    'nb_iter':10,
@@ -557,8 +557,7 @@ class NeuralNetwork(object):
         elif attack == 'MADRY':
             K.set_learning_phase(0)
             # Instantiate a CW attack object
-            madry_model = KerasModelWrapper(self.model.model)
-            madry = MadryEtAl(madry_model, sess=self.sess)
+            madry = MadryEtAl(model, sess=self.sess)
             yname = 'y'
             madry_params = { 'eps':0.3,
                    'eps_iter':0.03,

@@ -14,6 +14,7 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.callbacks import ReduceLROnPlateau
 from keras.preprocessing.image import ImageDataGenerator
+from keras.models import Model
 
 from models.neural_network import NeuralNetwork
 
@@ -37,10 +38,10 @@ class CNN(NeuralNetwork):
         #Hence attacker cannot create optimizer against those models.
 
         if 'mnist' in dataset.lower():
-            model = mnist_cnn()
+            model = self.mnist_cnn()
                 
         elif 'cifar10' in dataset.lower():
-            model = resnet_v1()
+            model = self.resnet_v1()
                
         return model
     
@@ -100,7 +101,7 @@ class CNN(NeuralNetwork):
         Initialize the model
         """
         if dataset.lower() == 'cifar10':
-            model.compile(loss='categorical_crossentropy',
+            self.model.compile(loss='categorical_crossentropy',
               optimizer=Adam(lr=self.lr_schedule(0)),
               metrics=['accuracy'])             
         else:
@@ -165,9 +166,7 @@ class CNN(NeuralNetwork):
         return lr
     
     def mnist_cnn(self):
-        layers = 
-            [
-                Conv2D(32, (3, 3), padding='valid', input_shape=(self.input_side, self.input_side, self.input_channels), name='conv1'),
+        layers = [Conv2D(32, (3, 3), padding='valid', input_shape=(self.input_side, self.input_side, self.input_channels), name='conv1'),
                 Activation(self.non_linearity),
                 Conv2D(64, (3, 3), name='conv2'),
                 Activation(self.non_linearity),
@@ -181,11 +180,11 @@ class CNN(NeuralNetwork):
                 Activation('softmax')
             ]
             
-            model = Sequential()
-            for layer in layers:
-                model.add(layer)
+        model = Sequential()
+        for layer in layers:
+            model.add(layer)
                 
-            return model
+        return model
         
     def resnet_layer(self,inputs,
                  num_filters=16,
@@ -297,11 +296,9 @@ class CNN(NeuralNetwork):
         # v1 does not use BN after last shortcut connection-ReLU
         x = AveragePooling2D(pool_size=8)(x)
         y = Flatten()(x)
-        outputs = Dense(num_classes,
-                    activation='softmax',
-                    kernel_initializer='he_normal')(y)
-
-    # Instantiate model.
-    model = Model(inputs=inputs, outputs=outputs)
-    return model       
+        logits = Dense(num_classes,kernel_initializer='he_normal')(y)
+        outputs = Activation('softmax')(logits)
+        # Instantiate model.
+        model = Model(inputs=inputs, outputs=outputs)
+        return model       
         
