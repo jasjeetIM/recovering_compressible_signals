@@ -566,7 +566,6 @@ class CarliniWagnerL2(object):
 
         # prediction BEFORE-SOFTMAX of the model
         self.output = model.get_logits(self.newimg)
-
         # distance to the input data
         self.other = (tf.tanh(self.timg) + 1) / \
             2 * (clip_max - clip_min) + clip_min
@@ -917,7 +916,6 @@ class CarliniWagnerL0(object):
                     if num_changed >= abort:
                         # if we changed too many pixels, skip
                         break
-            print(equal_count)
             valid = np.reshape(valid, orig_shape)
 
             last_solution = prev = nimg

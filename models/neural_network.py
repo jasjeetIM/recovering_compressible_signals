@@ -77,6 +77,12 @@ class NeuralNetwork(object):
             self.num_classes = 10
             self.batch_size = batch_size
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('fashion_mnist-big', project)
+            
+        elif dataset.lower() == 'cifar10-big':
+            self.num_classes = 10
+            self.batch_size = 32
+            self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('cifar10-big', project)
+            
                       
         
         
@@ -277,6 +283,39 @@ class NeuralNetwork(object):
             
             self.input_side = 125
             self.input_channels = 1
+            self.input_dim = self.input_side * self.input_side * self.input_channels
+            
+        elif dataset == 'cifar10-big':
+            (X_train_sm, Y_train), (X_test_sm, Y_test) = cifar10.load_data()
+            X_train_sm = X_train_sm.reshape(-1, 32, 32, 3)
+            X_test_sm = X_test_sm.reshape(-1, 32,32, 3)
+            
+            Y_train = np_utils.to_categorical(Y_train, 10)
+            Y_test = np_utils.to_categorical(Y_test, 10)
+            
+            X_train = np.zeros((X_train_sm.shape[0],125,125,3))
+            X_test = np.zeros((X_test_sm.shape[0],125,125,3))
+            
+            for i in range(X_train.shape[0]):
+                img = X_train_sm[i,:,:,0]
+                img = Image.fromarray(img)
+                basewidth = 125
+                wpercent = (basewidth/float(img.size[0]))
+                hsize = int((float(img.size[1])*float(wpercent)))
+                img = img.resize((basewidth,hsize), Image.ANTIALIAS)
+                X_train[i,:,:,0] = np.asarray(img)
+                
+            for i in range(X_test.shape[0]):
+                img = X_test_sm[i,:,:,0]
+                img = Image.fromarray(img)
+                basewidth = 125
+                wpercent = (basewidth/float(img.size[0]))
+                hsize = int((float(img.size[1])*float(wpercent)))
+                img = img.resize((basewidth,hsize), Image.ANTIALIAS)
+                X_test[i,:,:,0] = np.asarray(img)
+            
+            self.input_side = 125
+            self.input_channels = 3
             self.input_dim = self.input_side * self.input_side * self.input_channels
                       
     

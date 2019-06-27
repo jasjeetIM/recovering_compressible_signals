@@ -76,7 +76,7 @@ class CNN(NeuralNetwork):
         input_shape_one = (1,self.input_side, self.input_side,self.input_channels)
         label_shape_one = (1,self.num_classes)
         
-        return input_placeholder, labels_placeholder, input_shape_one, label_shape_one
+        return input_placeholder, labels_placeholder, input_shape_all, label_shape_all
     
     
     def get_logits_preds(self, inputs):
@@ -89,8 +89,9 @@ class CNN(NeuralNetwork):
         return logits, preds
     
     def predict(self, x):
+        input_shape = (-1,self.input_side, self.input_side,self.input_channels)
         feed_dict = {
-                self.input_placeholder: x.reshape(self.input_shape),
+                self.input_placeholder: x.reshape(input_shape),
                 K.learning_phase(): 0
             } 
         preds = self.sess.run(self.preds, feed_dict=feed_dict)
