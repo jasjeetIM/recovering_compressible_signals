@@ -566,7 +566,6 @@ class CarliniWagnerL2(object):
 
         # prediction BEFORE-SOFTMAX of the model
         self.output = model.get_logits(self.newimg)
-
         # distance to the input data
         self.other = (tf.tanh(self.timg) + 1) / \
             2 * (clip_max - clip_min) + clip_min
@@ -824,7 +823,7 @@ class CarliniWagnerL0(object):
         # If we've changed a pixel less than this amount, just set it to 0
         # and pretend it hasn't changed. It likey doesn't impact the result
         # in any meaningful way.
-        self.max_pixel_change = 0.01
+        self.max_pixel_change = 0.0001
 
         # As a caveat of the above: don't allow us to fix more than
         # pixel_change_fraction * sqrt(num_total_pixels)
@@ -866,7 +865,7 @@ class CarliniWagnerL0(object):
         last_solution = [instance]
         const = self.initial_const
         equal_count = 0
-
+        print(np.sum(valid))
         while True:
             # try to solve given this valid map
             self.l2_attack.source_image = np.copy(prev)
@@ -877,12 +876,13 @@ class CarliniWagnerL0(object):
                                                   np.array([target]),
                                                   mask=np.array([valid]))
                 if res is not None:
+		    print(np.sum(valid))
                     break
                 const *= self.const_factor
 
             if res is None:
+		print(np.sum(valid))
                 # the attack failed, we return this as our final answer
-		print('attack failed')
                 _logger.debug("Attack succeeded with {} fixed values.".
                               format(equal_count))
                 return last_solution
@@ -892,7 +892,9 @@ class CarliniWagnerL0(object):
             gradientnorm, scores, nimg = res
 
             equal_count = np.sum(np.abs(instance-nimg[0]) < .0001)
+            print(equal_count)
             if np.sum(valid) == 0:
+                print('no pix changed')
                 # if no pixels changed, return
                 return [instance]
             _logger.debug("Next iteration; {} fixed values."
@@ -917,8 +919,8 @@ class CarliniWagnerL0(object):
                     if num_changed >= abort:
                         # if we changed too many pixels, skip
                         break
-            print(equal_count)
             valid = np.reshape(valid, orig_shape)
+            print(np.sum(valid))
 
             last_solution = prev = nimg
 

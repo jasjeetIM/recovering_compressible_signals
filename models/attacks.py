@@ -685,13 +685,13 @@ class CarliniWagnerL2(Attack):
         self.parse_params(**kwargs)
 
         labels, nb_classes = self.get_or_guess_labels(x, kwargs)
-
+        print(x.get_shape().as_list()[1:])
         attack = CWL2(self.sess, self.model, self.batch_size,
                       self.confidence, 'y_target' in kwargs,
                       self.learning_rate, self.binary_search_steps,
                       self.max_iterations, self.abort_early,
                       self.initial_const, self.clip_min, self.clip_max,
-                      nb_classes, x.get_shape().as_list()[1:])
+                      nb_classes, 3)#x.get_shape().as_list()[1:])
 
         def cw_wrap(x_val, y_val):
             return np.array(attack.attack(x_val, y_val), dtype=np.float32)
@@ -805,7 +805,7 @@ class CarliniWagnerL0(Attack):
                       self.initial_const, self.largest_const,
                       self.const_factor,
                       self.clip_min, self.clip_max,
-                      nb_classes, x.get_shape().as_list()[1:])
+                      nb_classes, 3)#x.get_shape().as_list()[1:])
 
         def cw_wrap(x_val, y_val):
             return np.array(attack.attack(x_val, y_val), dtype=np.float32)
