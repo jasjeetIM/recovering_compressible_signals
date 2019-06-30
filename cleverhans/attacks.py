@@ -192,6 +192,7 @@ class Attack(object):
             raise ValueError("Can not set both 'y' and 'y_target'.")
         elif 'y' in kwargs:
             labels = kwargs['y']
+            print(labels)
         elif 'y_target' in kwargs:
             labels = kwargs['y_target']
         else:
@@ -685,13 +686,12 @@ class CarliniWagnerL2(Attack):
         self.parse_params(**kwargs)
 
         labels, nb_classes = self.get_or_guess_labels(x, kwargs)
-
         attack = CWL2(self.sess, self.model, self.batch_size,
                       self.confidence, 'y_target' in kwargs,
                       self.learning_rate, self.binary_search_steps,
                       self.max_iterations, self.abort_early,
                       self.initial_const, self.clip_min, self.clip_max,
-                      nb_classes, x.get_shape().as_list()[1:])
+                      nb_classes,x.get_shape().as_list()[1:])
 
         def cw_wrap(x_val, y_val):
             return np.array(attack.attack(x_val, y_val), dtype=np.float32)
@@ -710,6 +710,7 @@ class CarliniWagnerL2(Attack):
         if nb_classes is not None:
             warnings.warn("The nb_classes argument is depricated and will "
                           "be removed on 2018-02-11")
+        
         self.batch_size = batch_size
         self.confidence = confidence
         self.learning_rate = learning_rate
@@ -797,7 +798,6 @@ class CarliniWagnerL0(Attack):
         self.parse_params(**kwargs)
 
         labels, nb_classes = self.get_or_guess_labels(x, kwargs)
-
         attack = CWL0(self.sess, self.model,
                       self.confidence, 'y_target' in kwargs,
                       self.learning_rate,

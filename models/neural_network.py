@@ -297,22 +297,22 @@ class NeuralNetwork(object):
             X_test = np.zeros((X_test_sm.shape[0],125,125,3))
             
             for i in range(X_train.shape[0]):
-                img = X_train_sm[i,:,:,0]
+                img = X_train_sm[i,:,:,:]
                 img = Image.fromarray(img)
                 basewidth = 125
                 wpercent = (basewidth/float(img.size[0]))
                 hsize = int((float(img.size[1])*float(wpercent)))
                 img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                X_train[i,:,:,0] = np.asarray(img)
+                X_train[i,:,:,:] = np.asarray(img)
                 
             for i in range(X_test.shape[0]):
-                img = X_test_sm[i,:,:,0]
+                img = X_test_sm[i,:,:,:]
                 img = Image.fromarray(img)
                 basewidth = 125
                 wpercent = (basewidth/float(img.size[0]))
                 hsize = int((float(img.size[1])*float(wpercent)))
                 img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                X_test[i,:,:,0] = np.asarray(img)
+                X_test[i,:,:,:] = np.asarray(img)
             
             self.input_side = 125
             self.input_channels = 3
@@ -345,6 +345,8 @@ class NeuralNetwork(object):
         
         if project:
             if dataset=='cifar10':
+                k = 75
+            elif dataset == 'cifar10-big':
                 k = 75
             elif 'mnist' in dataset.lower():
                 k = 40
@@ -516,11 +518,11 @@ class NeuralNetwork(object):
             K.set_learning_phase(0)
             # Instantiate a CW attack object
             cw = CarliniWagnerL2(model, sess=self.sess)
-            yname = 'y'
+            
             
             cw_params = {'batch_size':10,
                  'confidence':0,
-                'learning_rate':0.1,
+                'learning_rate':0.01,
                 'binary_search_steps':5,
                 'max_iterations':100,
                 'abort_early':True,
@@ -534,11 +536,10 @@ class NeuralNetwork(object):
             K.set_learning_phase(0)
             # Instantiate a CW attack object
             cw = CarliniWagnerL0(model, sess=self.sess)
-            yname = 'y'
-            
-            cw_params = {'batch_size':10,
-                 'confidence':0,
-                'learning_rate':0.1,
+
+            cw_params = {'batch_size':1,
+                 'confidence':0.,
+                'learning_rate':0.01,
                 'binary_search_steps':5,
                 'max_iterations':100,
                 'abort_early':True,

@@ -31,9 +31,9 @@ class OnePixelAttack(object):
         # Define bounds for a flat vector of x,y,r,g,b values
         dim_x, dim_y, channels = self.dimensions
         if channels == 3:
-            bounds = [(0,dim_x), (0,dim_y), (0,2), (0,2), (0,2)] * pixel_count
+            bounds = [(0,dim_x), (0,dim_y), (0,256), (0,256), (0,256)] * pixel_count
         else:
-            bounds = [(0,dim_x), (0,dim_y), (0,2)] * pixel_count
+            bounds = [(0,dim_x), (0,dim_y), (0,256)] * pixel_count
 
 
         
@@ -70,17 +70,11 @@ class OnePixelAttack(object):
     
     def perturb_image(self, x, img):
         x = x.astype(int)
-        print(x.shape)
         if len(x.shape) < 2:
             x = x.reshape((-1,x.shape[0]))
         tile = [len(x)] + [1]*(x.ndim+1)
         imgs = np.tile(img, tile)
-        if img.shape[2] == 1:
-            for xs,img in zip(x,imgs):
-                img[xs[0],xs[1]] = xs[2]
-                
-        elif img.shape[2] == 3:
-            for xs,img in zip(x,imgs):
-                img[xs[0],xs[1],:] = xs[2:]
-                
+        pixels = np.split(x.flatten(), (x.shape[0]*x.shape[1])/5)
+        for xs,img in zip(pixels,imgs):
+            img[xs[0],xs[1],:] = xs[2:]                
         return imgs

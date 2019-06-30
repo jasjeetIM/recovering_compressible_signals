@@ -540,8 +540,6 @@ class CarliniWagnerL2(object):
                                 name='mask')
         self.timg = tf.Variable(np.zeros(shape), dtype=tf.float32,
                                 name='timg')
-        self.simg = tf.Variable(np.zeros(shape), dtype=tf.float32,
-                                name='simg')
         self.tlab = tf.Variable(np.zeros((batch_size, num_labels)),
                                 dtype=tf.float32, name='tlab')
         self.const = tf.Variable(np.zeros(batch_size), dtype=tf.float32,
@@ -552,8 +550,6 @@ class CarliniWagnerL2(object):
                                           name='assign_mask')
         self.assign_timg = tf.placeholder(tf.float32, shape,
                                           name='assign_timg')
-        self.assign_simg = tf.placeholder(tf.float32, shape,
-                                          name='assign_simg')
         self.assign_tlab = tf.placeholder(tf.float32, (batch_size, num_labels),
                                           name='assign_tlab')
         self.assign_const = tf.placeholder(tf.float32, [batch_size],
@@ -561,9 +557,10 @@ class CarliniWagnerL2(object):
 
         # the resulting instance, tanh'd to keep bounded from clip_min
         # to clip_max
-        self.newimg = (tf.tanh(modifier*self.mask + self.timg) + 1) / 2
+        self.newimg = (tf.tanh(modifier*self.mask + self.timg) + 1)/2
+       
         self.newimg = self.newimg * (clip_max - clip_min) + clip_min
-
+       
         # prediction BEFORE-SOFTMAX of the model
         self.output = model.get_logits(self.newimg)
         # distance to the input data
@@ -606,7 +603,6 @@ class CarliniWagnerL2(object):
         self.setup = []
         self.setup.append(self.mask.assign(self.assign_mask))
         self.setup.append(self.timg.assign(self.assign_timg))
-        self.setup.append(self.simg.assign(self.assign_simg))
         self.setup.append(self.tlab.assign(self.assign_tlab))
         self.setup.append(self.const.assign(self.assign_const))
 
@@ -679,7 +675,6 @@ class CarliniWagnerL2(object):
             self.sess.run(self.init)
             batch = imgs[:batch_size]
             batchlab = labs[:batch_size]
-
             bestl2 = [1e10] * batch_size
             bestscore = [-1] * batch_size
             _logger.debug("  Binary search step {} of {}".
@@ -692,7 +687,6 @@ class CarliniWagnerL2(object):
             # set the variables so that we don't have to send them over again
             self.sess.run(self.setup, {self.assign_timg: batch,
                                        self.assign_mask: mask,
-                                       self.assign_simg: batch,
                                        self.assign_tlab: batchlab,
                                        self.assign_const: CONST})
 
@@ -773,11 +767,10 @@ class CarliniWagnerL2(object):
 
 class CarliniWagnerL0(object):
 
-    def __init__(self, sess, model, confidence,
+    def __init__(self, sess, model, batch_size, confidence,
                  targeted, learning_rate,
-                 max_iterations,
+                 binary_search_steps, max_iterations,
                  abort_early, initial_const,
-                 largest_const, const_factor,
                  clip_min, clip_max, num_labels, shape):
         """
         Return a tensor that constructs adversarial examples for the given
@@ -816,9 +809,7 @@ class CarliniWagnerL0(object):
         :param clip_min: (optional float) Minimum input component value
         :param clip_max: (optional float) Maximum input component value
         """
-        self.initial_const = initial_const
-        self.largest_const = largest_const
-        self.const_factor = const_factor
+        
 
         # If we've changed a pixel less than this amount, just set it to 0
         # and pretend it hasn't changed. It likey doesn't impact the result
@@ -829,13 +820,105 @@ class CarliniWagnerL0(object):
         # pixel_change_fraction * sqrt(num_total_pixels)
         # at any one time.
         self.pixel_change_fraction = 0.3
+        batch_size=1
+        self.sess = sess
+        self.TARGETED = False
+        self.LEARNING_RATE = 1e-2
+        self.MAX_ITERATIONS = 1000
+        self.BINARY_SEARCH_STEPS = binary_search_steps
+        self.ABORT_EARLY = abort_early
+        self.CONFIDENCE = confidence
+        self.initial_const = 1e-3
+        self.batch_size = batch_size
+        self.clip_min = clip_min
+        self.clip_max = clip_max
+        self.model = model
+        self.const_factor = 2.0
 
-        self.l2_attack = CarliniWagnerL2(sess, model, 1, confidence,
-                                         targeted, learning_rate,
-                                         1, max_iterations,
-                                         abort_early, initial_const,
-                                         clip_min, clip_max, num_labels, shape,
-                                         extension=0)
+        self.repeat = binary_search_steps >= 10
+        self.shape = shape = tuple([batch_size] + list(shape))
+
+        # the variable we're going to optimize over
+        self.modifier = tf.Variable(np.zeros(shape, dtype=np.float32))
+        #self.canchange = tf.Variable(np.zeros(shape, dtype=np.float32))
+        self.original = tf.Variable(np.zeros(shape,dtype=np.float32))
+
+
+        # these are variables to be more efficient in sending data to tf
+        self.mask = tf.Variable(np.ones(shape), dtype=tf.float32,
+                                name='mask')
+        self.timg = tf.Variable(np.zeros(shape), dtype=tf.float32,
+                                name='timg')
+        self.simg = tf.Variable(np.zeros(shape), dtype=tf.float32,
+                                name='simg')
+        self.tlab = tf.Variable(np.zeros((batch_size, num_labels)),
+                                dtype=tf.float32, name='tlab')
+        self.const = tf.Variable(np.zeros(batch_size), dtype=tf.float32,
+                                 name='const')
+
+        # and here's what we use to assign them
+        self.assign_modifier = tf.placeholder(np.float32,shape)
+        self.assign_mask = tf.placeholder(tf.float32, shape,
+                                          name='assign_mask')
+        self.assign_timg = tf.placeholder(tf.float32, shape,
+                                          name='assign_timg')
+        self.assign_tlab = tf.placeholder(tf.float32, (batch_size, num_labels),
+                                          name='assign_tlab')
+        self.assign_const = tf.placeholder(tf.float32, [batch_size],
+                                           name='assign_const')
+        self.assign_simg = tf.placeholder(tf.float32, shape,
+                                          name='assign_simg')
+        self.assign_original = tf.placeholder(tf.float32, shape,
+                                          name='assign_original')
+        
+        # these are the variables to initialize when we run
+        self.setup = []
+        self.set_modifier = tf.assign(self.modifier,self.assign_modifier)
+        self.setup.append(self.mask.assign(self.assign_mask))
+        self.setup.append(self.original.assign(self.assign_original))
+        self.setup.append(self.simg.assign(self.assign_simg))
+        self.setup.append(self.timg.assign(self.assign_timg))
+        self.setup.append(self.tlab.assign(self.assign_tlab))
+
+        # the resulting instance, tanh'd to keep bounded from clip_min
+        # to clip_max
+        self.newimg = (tf.tanh(self.modifier+ self.simg)/2)*self.mask + (1-self.mask)*self.original
+       
+        #self.newimg = self.newimg * (clip_max - clip_min) + clip_min
+       
+        # prediction BEFORE-SOFTMAX of the model
+        self.output = model.get_logits(self.newimg)
+        
+        # compute the probability of the label class versus the maximum other
+        real = tf.reduce_sum((self.tlab) * self.output, 1)
+        other = tf.reduce_max(
+            (1 - self.tlab) * self.output - self.tlab * 10000,
+            1)
+
+        if self.TARGETED:
+            # if targeted, optimize for making the other class most likely
+            loss1 = tf.maximum(0.0, other - real + self.CONFIDENCE)
+        else:
+            # if untargeted, optimize for making this class least likely.
+            loss1 = tf.maximum(0.0, real - other + self.CONFIDENCE)
+
+        # sum up the losses
+        self.loss2 = tf.reduce_sum(tf.square(self.newimg-tf.tanh(self.timg)/2))
+        self.loss1 = tf.reduce_sum(self.const * loss1)
+        self.loss = self.loss1 + self.loss2
+
+        self.outgrad = tf.gradients(self.loss, [self.modifier])[0]
+
+        # Setup the adam optimizer and keep track of variables we're creating
+        start_vars = set(x.name for x in tf.global_variables())
+        optimizer = tf.train.AdamOptimizer(self.LEARNING_RATE)
+        self.train = optimizer.minimize(self.loss, var_list=[self.modifier])
+        end_vars = tf.global_variables()
+        new_vars = [x for x in end_vars if x.name not in start_vars]
+
+        
+
+        self.init = tf.variables_initializer(var_list=[self.modifier,self.mask,self.simg,self.original,self.timg,self.tlab] + new_vars)
 
     def attack(self, instances, targets):
         """
@@ -855,69 +938,108 @@ class CarliniWagnerL0(object):
         """
         Run the attack on a single instance and label.
         """
-
+        instance = np.expand_dims(instance,axis=0)
+        target = np.expand_dims(target,axis=0)
         # the pixels we can change
         valid = np.ones(instance.shape)
+        
         #valid = np.random.randint(0,high=2,size=(instance.shape))
         # the previous image
-        prev = np.copy([instance])
-
-        last_solution = [instance]
+        prev = np.copy(instance)
+        last_solution = instance
         const = self.initial_const
         equal_count = 0
-
+        grads, scores, nimg = None,None,None
+        
         while True:
-            # try to solve given this valid map
-            self.l2_attack.source_image = np.copy(prev)
-            while const < self.largest_const:
+            
+            img = np.arctanh(np.array(instance)*0.999999)
+            
+            start = np.arctanh(np.array(prev)*0.999999)
+
+            # initialize the variables
+            self.sess.run(self.init)
+
+            self.sess.run(self.setup, {self.assign_timg: img, 
+                                    self.assign_tlab: target, 
+                                    self.assign_simg: start, 
+                                    self.assign_original: img,
+                                    self.assign_mask: valid})
+            CONST = self.initial_const
+            worked = False
+            while CONST < 2e6:
                 # try solving for each value of the constant
-                self.l2_attack.initial_const = const
-                res = self.l2_attack.attack_batch(np.copy([instance]),
-                                                  np.array([target]),
-                                                  mask=np.array([valid]))
-                if res is not None:
+                #print('try const', CONST)
+                for step in range(self.MAX_ITERATIONS):
+                    feed_dict={self.const: [CONST]}
+
+                    # remember the old value
+                    oldmodifier = self.sess.run(self.modifier)
+
+                    #if step%(self.MAX_ITERATIONS//10) == 0:
+                    #    print(step,*self.sess.run((self.loss1,self.loss2, self.loss),feed_dict=feed_dict))
+
+                    # perform the update step
+                    _, works, scores = self.sess.run([self.train, self.loss1, self.output], feed_dict=feed_dict)
+
+                    if np.all(scores>=-.0001) and np.all(scores <= 1.0001):
+                        if np.allclose(np.sum(scores,axis=1), 1.0, atol=1e-3):
+                            print('softmax issue')
+                    
+                    if works < .0001 and self.ABORT_EARLY:
+                        # it worked previously, restore the old value and finish
+                        self.sess.run(self.set_modifier, {self.assign_modifier: oldmodifier})
+                        grads, scores, nimg = self.sess.run((self.outgrad, self.output,self.newimg),
+                                                       feed_dict=feed_dict)
+
+                        l2s=np.square(nimg-np.tanh(img)/2).sum(axis=(1,2,3))
+                        print(l2s)
+                        worked=True
+                        break
+                #Finish for loop and worked, lets exit 
+                if worked:
                     break
-                const *= self.const_factor
+                #Finished for loop and did not work, lets try with a bigger const
+                else:
+                    CONST *= self.const_factor
+            
+            
+            #Tried all constants and all for loops but couldnt make it work, lets exit
+            if worked== False and CONST >=2e6:
+                print('exiting success')
+                #print(test)
+                return [last_solution]
 
-            if res is None:
-                # the attack failed, we return this as our final answer
-		print('attack failed')
-                _logger.debug("Attack succeeded with {} fixed values.".
-                              format(equal_count))
-                return last_solution
-
-            # the attack succeeded, now we pick new pixels to set to 0
-            restarted = False
-            gradientnorm, scores, nimg = res
-
-            equal_count = np.sum(np.abs(instance-nimg[0]) < .0001)
+            equal_count = np.sum(np.abs(img-nimg[0])<.0001)
+            print("Forced equal:",np.sum(1-valid),
+                  "Equal count:",equal_count)
             if np.sum(valid) == 0:
-                # if no pixels changed, return
+                print('exiting fail')
+                # if no pixels changed, return 
+                #print(test)
                 return [instance]
-            _logger.debug("Next iteration; {} fixed values."
-                          .format(equal_count))
-
-            orig_shape = valid.shape
+    
             valid = valid.flatten()
-            totalchange = abs(nimg[0]-instance)*np.abs(gradientnorm[0])
+            totalchange = abs(nimg[0]-img)*np.abs(grads[0])
             totalchange = totalchange.flatten()
-
+       
             # set some of the pixels to 0 depending on their total change
-            num_changed = 0
+            did = 0
             for e in np.argsort(totalchange):
                 if np.all(valid[e]):
-                    num_changed += 1
+                    did += 1
                     valid[e] = 0
 
-                    if totalchange[e] > self.max_pixel_change:
+                    if totalchange[e] > .01:
                         # if this pixel changed a lot, skip
                         break
-                    abort = self.pixel_change_fraction*equal_count**.5
-                    if num_changed >= abort:
+                    if did >= .4*equal_count**.5:
                         # if we changed too many pixels, skip
                         break
-            valid = np.reshape(valid, orig_shape)
 
+            valid = np.reshape(valid,instance.shape)
+            #print("Now forced equal:",np.sum(1-valid))
+    
             last_solution = prev = nimg
 
 class ElasticNetMethod(object):
