@@ -2,9 +2,9 @@
 This repo contains code as well as experiment results for the paper "Recovery Guarantees for Compressible Signals with Adversarial Noise".
 
 ## Code Overview
- /models: Core codebase for network setup, training, and utilities.
- /cleverhans: Branch of the Cleverhans library used in conducting the CW, JSMA, and DF attacks. 
- /notebooks: All experiments and results. 
+- /models: Core codebase for network setup, training, and utilities.
+- /cleverhans: Branch of the Cleverhans library used in conducting the CW, JSMA, and DF attacks. 
+- /notebooks: All experiments and results. 
 
 
 ## Requirements
