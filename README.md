@@ -1,4 +1,4 @@
-## Overview
+## Repo Overview
 This repo contains experimental code for the paper "Recovery Guarantees for Compressible Signals with Adversarial Noise".
 
 ## Code Overview
