@@ -34,8 +34,6 @@ class CNN(NeuralNetwork):
         """
         Create a Keras Sequential Model
         """
-        #Models using pooling layers cannot take second derivative. 
-        #Hence attacker cannot create optimizer against those models.
 
         if 'mnist' in dataset.lower():
             model = self.mnist_cnn()

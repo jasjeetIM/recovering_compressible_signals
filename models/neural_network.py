@@ -14,7 +14,7 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.callbacks import ReduceLROnPlateau
 from keras.preprocessing.image import ImageDataGenerator
 from cleverhans.utils_keras import KerasModelWrapper
-from cleverhans.attacks import CarliniWagnerL2, CarliniWagnerL0, BasicIterativeMethod, DeepFool, SaliencyMapMethod, FastGradientMethod, MadryEtAl
+from cleverhans.attacks import CarliniWagnerL2, CarliniWagnerL0, DeepFool, SaliencyMapMethod
 
 import numpy as np
 import os, time, math, gc
@@ -28,7 +28,7 @@ class NeuralNetwork(object):
     """General Neural Network Class for multi-class classification """
     SEED = 14
     
-    def __init__(self, model_name=None, dataset='mnist', project=True, transform='dct', batch_size=128, initial_learning_rate=8e-1, load_from_file=False, load_model_path='', load_weights_path='', seed=14):
+    def __init__(self, model_name=None, dataset='mnist', project=True, transform='dct', batch_size=128, load_from_file=False, load_model_path='', load_weights_path='', seed=14):
         """
         Desc:
             Constructor
@@ -67,16 +67,6 @@ class NeuralNetwork(object):
             self.num_classes = 10
             self.batch_size = 32
             self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('cifar10', project)
-            
-        elif dataset.lower() == 'mnist-big':
-            self.num_classes = 10
-            self.batch_size = batch_size
-            self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('mnist-big', project)
-        
-        elif dataset.lower() == 'fashion_mnist-big':
-            self.num_classes = 10
-            self.batch_size = batch_size
-            self.train_data, self.train_labels, self.val_data, self.val_labels, self.test_data, self.test_labels = self.load_dataset('fashion_mnist-big', project)
             
         elif dataset.lower() == 'cifar10-big':
             self.num_classes = 10
@@ -158,6 +148,7 @@ class NeuralNetwork(object):
                 x_rec[i,:,:,0]= f_recon
                 
         elif self.transform=='dct-3d':
+            #To speed up using pool
             for i in range(X.shape[0]):
                 f_x_r = dct(X[i,:,:,0].flatten(),norm='ortho').reshape(int(n),int(n))
                 f_x_g = dct(X[i,:,:,1].flatten(),norm='ortho').reshape(int(n),int(n))
@@ -218,72 +209,7 @@ class NeuralNetwork(object):
             self.input_side = 32
             self.input_channels = 3
             self.input_dim = self.input_side * self.input_side * self.input_channels
-            
-        elif dataset.lower() == 'mnist-big':
-            (X_train_sm, Y_train), (X_test_sm, Y_test) = mnist.load_data()
-            X_train_sm = X_train_sm.reshape(-1, 28, 28, 1)
-            X_test_sm = X_test_sm.reshape(-1, 28, 28, 1)
-            
-            Y_train = np_utils.to_categorical(Y_train, 10)
-            Y_test = np_utils.to_categorical(Y_test, 10)
-            
-            X_train = np.zeros((X_train_sm.shape[0],125,125,1))
-            X_test = np.zeros((X_test_sm.shape[0],125,125,1))
-            
-            for i in range(X_train.shape[0]):
-                img = X_train_sm[i,:,:,0]
-                img = Image.fromarray(img)
-                basewidth = 125
-                wpercent = (basewidth/float(img.size[0]))
-                hsize = int((float(img.size[1])*float(wpercent)))
-                img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                X_train[i,:,:,0] = np.asarray(img)
-                
-            for i in range(X_test.shape[0]):
-                img = X_test_sm[i,:,:,0]
-                img = Image.fromarray(img)
-                basewidth = 125
-                wpercent = (basewidth/float(img.size[0]))
-                hsize = int((float(img.size[1])*float(wpercent)))
-                img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                X_test[i,:,:,0] = np.asarray(img)
-            
-            self.input_side = 125
-            self.input_channels = 1
-            self.input_dim = self.input_side * self.input_side * self.input_channels
-        
-        elif dataset.lower() == 'fashion_mnist-big':
-            (X_train_sm, Y_train), (X_test_sm, Y_test) = fashion_mnist.load_data()
-            X_train_sm = X_train_sm.reshape(-1, 28, 28, 1)
-            X_test_sm = X_test_sm.reshape(-1, 28, 28, 1)
-            
-            Y_train = np_utils.to_categorical(Y_train, 10)
-            Y_test = np_utils.to_categorical(Y_test, 10)
-            
-            X_train = np.zeros((X_train_sm.shape[0],125,125,1))
-            X_test = np.zeros((X_test_sm.shape[0],125,125,1))
-            
-            for i in range(X_train.shape[0]):
-                img = X_train_sm[i,:,:,0]
-                img = Image.fromarray(img)
-                basewidth = 125
-                wpercent = (basewidth/float(img.size[0]))
-                hsize = int((float(img.size[1])*float(wpercent)))
-                img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                X_train[i,:,:,0] = np.asarray(img)
-                
-            for i in range(X_test.shape[0]):
-                img = X_test_sm[i,:,:,0]
-                img = Image.fromarray(img)
-                basewidth = 125
-                wpercent = (basewidth/float(img.size[0]))
-                hsize = int((float(img.size[1])*float(wpercent)))
-                img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-                X_test[i,:,:,0] = np.asarray(img)
-            
-            self.input_side = 125
-            self.input_channels = 1
-            self.input_dim = self.input_side * self.input_side * self.input_channels
+
             
         elif dataset.lower() == 'cifar10-big':
             (X_train_sm, Y_train), (X_test_sm, Y_test) = cifar10.load_data()
@@ -343,11 +269,11 @@ class NeuralNetwork(object):
         X_test = X_test[mask]
         Y_test = Y_test[mask]
         
-        if False:
+        if project:
             if dataset=='cifar10':
                 k = 75
             elif dataset == 'cifar10-big':
-                k = 75
+                k = 275
             elif 'mnist' in dataset.lower():
                 k = 40
             
@@ -372,7 +298,7 @@ class NeuralNetwork(object):
     def get_loss_op(self, logits, labels):
         """
         Desc:
-            Create operation used to calculate loss during network training and for influence calculations. 
+            Create operation used to calculate loss during network training 
         """
         out = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
         return out
@@ -500,7 +426,7 @@ class NeuralNetwork(object):
         return gradient
     
         
-    def get_adversarial_version(self, x, y=None, eps=0.3, iterations=100,attack='FGSM', targeted=False, x_tar=None, x_labs=None,y_tar=None,clip_min=0.0, clip_max = 1.0, use_cos_norm_reg=False, use_logreg=False, num_logreg=0,nb_candidate=10, train_grads=None, num_params=100):
+    def get_adversarial_version(self, x, y=None, eps=0.3, iterations=100,attack='FGSM', targeted=False,y_tar=None,clip_min=0.0, clip_max = 1.0, nb_candidate=10, num_params=100):
         """
         Desc:
             Caclulate the adversarial version for point x using FGSM
@@ -524,7 +450,7 @@ class NeuralNetwork(object):
                  'confidence':0,
                 'learning_rate':1e-2,
                 'binary_search_steps':5,
-                'max_iterations':100,
+                'max_iterations':iterations,
                 'abort_early':True,
                 'initial_const':1e-4,
                 'clip_min':0.0,
@@ -541,7 +467,7 @@ class NeuralNetwork(object):
                  'confidence':0.,
                 'learning_rate':1e-2,
                 'binary_search_steps':5,
-                'max_iterations':100,
+                'max_iterations':iterations,
                 'abort_early':True,
                 'initial_const':1e-4,
                 'clip_min':0.0,
@@ -564,59 +490,12 @@ class NeuralNetwork(object):
                            'clip_max': clip_max,
                            'y_target': y_tar}
             x_adv = jsma.generate_np(x, **jsma_params)
-            
-        elif attack == 'FGSM':
-            K.set_learning_phase(0)
-            # Instantiate a CW attack object
-            fgsm = FastGradientMethod(model, sess=self.sess)
-           
-            fgsm_params = {'eps':0.3,
-                       'ord':np.inf,
-                       'y':None,
-                       'y_target':None,
-                       'clip_min':0.0,
-                       'clip_max':1.0,
-                       'sanity_checks':True}
-            x_adv = fgsm.generate_np(x,**fgsm_params)     
-
-
-        elif attack == 'BIM':
-            K.set_learning_phase(0)
-            bim = BasicIterativeMethod(model, sess=self.sess)
-            bim_params = { 'eps':0.3,
-                   'eps_iter':0.03,
-                   'nb_iter':10,
-                   'y':None,
-                   'ord':np.inf,
-                   'clip_min':0.0,
-                   'clip_max':1.0,
-                   'y_target':None,
-                   'sanity_checks':True}
-            x_adv = bim.generate_np(x,**bim_params)     
-            
-        elif attack == 'MADRY':
-            K.set_learning_phase(0)
-            # Instantiate a CW attack object
-            madry = MadryEtAl(model, sess=self.sess)
-            yname = 'y'
-            madry_params = { 'eps':0.3,
-                   'eps_iter':0.03,
-                   'nb_iter':10,
-                   'y':None,
-                   'ord':np.inf,
-                   'clip_min':0.0,
-                   'clip_max':1.0,
-                   'y_target':None,
-                   'sanity_checks':True}
-            x_adv = madry.generate_np(x,**madry_params)     
-  
-
         
             
         return x_adv
         
     
-    def generate_perturbed_data(self, x, y=None, eps=0.3, iterations=100,seed=SEED, perturbation='FGSM', targeted=False, x_tar=None,y_tar=None, x_labs = None, nb_candidate=10, train_grads=None, num_params=100):
+    def generate_perturbed_data(self, x, y=None, eps=0.3, iterations=100,seed=SEED, perturbation='FGSM',nb_candidate=10):
         """
         Generate a perturbed data set using FGSM, CW, or random uniform noise.
         x: n x input_shape matrix
@@ -628,9 +507,9 @@ class NeuralNetwork(object):
         x_perturbed: perturbed version of x
         """
         if perturbation == 'CW-l0':
-            x_perturbed = self.get_adversarial_version(x,y,attack='CW-l0', eps=eps)  
+            x_perturbed = self.get_adversarial_version(x,y,attack='CW-l0')  
         elif perturbation == 'CW-l2':
-            x_perturbed = self.get_adversarial_version(x,y,attack='CW-l2', eps=eps) 
+            x_perturbed = self.get_adversarial_version(x,y,attack='CW-l2') 
         elif perturbation == 'DF':
             x_perturbed = self.get_adversarial_version(x,y,attack='DF', nb_candidate=nb_candidate)
         elif perturbation == 'JSMA':

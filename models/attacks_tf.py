@@ -876,12 +876,10 @@ class CarliniWagnerL0(object):
                                                   np.array([target]),
                                                   mask=np.array([valid]))
                 if res is not None:
-		    print(np.sum(valid))
                     break
                 const *= self.const_factor
 
             if res is None:
-		print(np.sum(valid))
                 # the attack failed, we return this as our final answer
                 _logger.debug("Attack succeeded with {} fixed values.".
                               format(equal_count))
@@ -892,7 +890,6 @@ class CarliniWagnerL0(object):
             gradientnorm, scores, nimg = res
 
             equal_count = np.sum(np.abs(instance-nimg[0]) < .0001)
-            print(equal_count)
             if np.sum(valid) == 0:
                 print('no pix changed')
                 # if no pixels changed, return
@@ -920,7 +917,6 @@ class CarliniWagnerL0(object):
                         # if we changed too many pixels, skip
                         break
             valid = np.reshape(valid, orig_shape)
-            print(np.sum(valid))
 
             last_solution = prev = nimg
 
