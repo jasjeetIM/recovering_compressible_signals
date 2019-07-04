@@ -13,4 +13,4 @@ This repo contains code as well as experiment results for the paper "Recovery Gu
 - numpy,scipy,bottleneck,cvxpy,PIL,jupyter
 
 ## Usage
-We have created a notebook for every experiment in the paper. In order to reproduce or modify experiments, select the relevant
+We have created a notebook for every experiment in the paper. In order to reproduce or modify experiments, select the relevant notebook.
