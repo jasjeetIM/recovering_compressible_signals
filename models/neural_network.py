@@ -183,7 +183,7 @@ class NeuralNetwork(object):
         Desc: Load the required dataset into the model
         """
         
-        if dataset == 'mnist':
+        if dataset.lower() == 'mnist':
             (X_train, Y_train), (X_test, Y_test) = mnist.load_data()
             X_train = X_train.reshape(-1, 28, 28, 1)
             X_test = X_test.reshape(-1, 28, 28, 1)
@@ -196,7 +196,7 @@ class NeuralNetwork(object):
             self.input_dim = self.input_side * self.input_side * self.input_channels
                                  
             
-        elif dataset == 'fashion_mnist':
+        elif dataset.lower() == 'fashion_mnist':
             (X_train, Y_train), (X_test, Y_test) = fashion_mnist.load_data()
             X_train = X_train.reshape(-1, 28, 28, 1)
             X_test = X_test.reshape(-1, 28, 28, 1)
@@ -209,7 +209,7 @@ class NeuralNetwork(object):
             self.input_dim = self.input_side * self.input_side * self.input_channels
             
             
-        elif dataset == 'cifar10':
+        elif dataset.lower() == 'cifar10':
             (X_train, Y_train), (X_test, Y_test) = cifar10.load_data()
             
             Y_train = np_utils.to_categorical(Y_train, 10)
@@ -219,7 +219,7 @@ class NeuralNetwork(object):
             self.input_channels = 3
             self.input_dim = self.input_side * self.input_side * self.input_channels
             
-        elif dataset == 'mnist-big':
+        elif dataset.lower() == 'mnist-big':
             (X_train_sm, Y_train), (X_test_sm, Y_test) = mnist.load_data()
             X_train_sm = X_train_sm.reshape(-1, 28, 28, 1)
             X_test_sm = X_test_sm.reshape(-1, 28, 28, 1)
@@ -252,7 +252,7 @@ class NeuralNetwork(object):
             self.input_channels = 1
             self.input_dim = self.input_side * self.input_side * self.input_channels
         
-        elif dataset == 'fashion_mnist-big':
+        elif dataset.lower() == 'fashion_mnist-big':
             (X_train_sm, Y_train), (X_test_sm, Y_test) = fashion_mnist.load_data()
             X_train_sm = X_train_sm.reshape(-1, 28, 28, 1)
             X_test_sm = X_test_sm.reshape(-1, 28, 28, 1)
@@ -285,7 +285,7 @@ class NeuralNetwork(object):
             self.input_channels = 1
             self.input_dim = self.input_side * self.input_side * self.input_channels
             
-        elif dataset == 'cifar10-big':
+        elif dataset.lower() == 'cifar10-big':
             (X_train_sm, Y_train), (X_test_sm, Y_test) = cifar10.load_data()
             X_train_sm = X_train_sm.reshape(-1, 32, 32, 3)
             X_test_sm = X_test_sm.reshape(-1, 32,32, 3)
@@ -325,10 +325,10 @@ class NeuralNetwork(object):
         X_train /= 255
         X_test /= 255
         
-        if dataset.lower() == 'cifar10':
+        if 'cifar' in dataset.lower():
             X_train_mean = np.mean(X_train, axis=0)
             X_train -= X_train_mean
-            X_test -= X_train_mean
+            #X_test -= X_train_mean
         
         num_val = int(X_test.shape[0]/2.0)
         
@@ -343,7 +343,7 @@ class NeuralNetwork(object):
         X_test = X_test[mask]
         Y_test = Y_test[mask]
         
-        if project:
+        if False:
             if dataset=='cifar10':
                 k = 75
             elif dataset == 'cifar10-big':
@@ -522,13 +522,13 @@ class NeuralNetwork(object):
             
             cw_params = {'batch_size':10,
                  'confidence':0,
-                'learning_rate':0.01,
+                'learning_rate':1e-2,
                 'binary_search_steps':5,
                 'max_iterations':100,
                 'abort_early':True,
-                'initial_const':1e-2,
-                'clip_min':0,
-                'clip_max':1}    
+                'initial_const':1e-4,
+                'clip_min':0.0,
+                'clip_max':1.0}    
 
             x_adv = cw.generate_np(x,**cw_params)
             
@@ -539,13 +539,13 @@ class NeuralNetwork(object):
 
             cw_params = {'batch_size':1,
                  'confidence':0.,
-                'learning_rate':0.01,
+                'learning_rate':1e-2,
                 'binary_search_steps':5,
                 'max_iterations':100,
                 'abort_early':True,
                 'initial_const':1e-4,
-                'clip_min':0,
-                'clip_max':1}    
+                'clip_min':0.0,
+                'clip_max':1.0}    
 
             x_adv = cw.generate_np(x,**cw_params)
             

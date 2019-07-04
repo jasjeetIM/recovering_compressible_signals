@@ -186,6 +186,7 @@ class CNN(NeuralNetwork):
             model.add(layer)
                 
         return model
+
         
     def resnet_layer(self,inputs,
                  num_filters=16,

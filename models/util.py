@@ -65,7 +65,7 @@ def iht(y,t, T=100,k=20,transform='dct'):
         for i in range(T):
             x_hat = get_topk_vec(dct((y - e_hat), norm='ortho'), k)
             e_hat = get_topk_vec(y - idct(x_hat, norm='ortho'), t)   
-    return x_hat,e_hat
+    return x_hat - e_hat,e_hat
 
 
 def socp(y, D, n=784, eta=2.7):
@@ -88,7 +88,7 @@ def avg_l2_dist(orig, adv):
     num_ = orig.shape[0]
     if num_ > 0:
         for i in range(orig.shape[0]):
-            l2_dist+= np.linalg.norm(orig[i] - adv[i])
+            l2_dist+= np.linalg.norm(orig[i].flatten() - adv[i].flatten())
         return l2_dist/orig.shape[0]
     else:
         return np.nan
