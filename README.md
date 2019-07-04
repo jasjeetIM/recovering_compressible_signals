@@ -4,7 +4,7 @@ This repo contains experimental code for the paper "Recovery Guarantees for Comp
 ## Code Overview
 - /models: Core codebase for network setup, training, one pixel attack, and other  utilities.
 - /cleverhans: Branch of the Cleverhans library used in conducting the CW, JSMA, and DF attacks. 
-- /notebooks: Jupyter notebooks for each experiment. 
+- /notebooks: Jupyter notebooks for each experiment. Experiments for Section 8.1 are named Theory-* 
 
 ## Requirements
 - python 2.7.12
