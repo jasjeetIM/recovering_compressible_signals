@@ -816,7 +816,7 @@ class CarliniWagnerL0(object):
         :param clip_max: (optional float) Maximum input component value
         """
         self.initial_const = initial_const
-        self.largest_const = 2e3
+        self.largest_const = 1e2
         self.const_factor = const_factor
 
         # If we've changed a pixel less than this amount, just set it to 0

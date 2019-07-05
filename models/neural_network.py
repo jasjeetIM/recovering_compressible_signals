@@ -37,7 +37,6 @@ class NeuralNetwork(object):
             model_name(str): Name of model (will be saved as such)
             dataset(str): Name of dataset to load - also determines which model will be loaded
             batch_size(int): Batch size to be used during training
-            initial_learning_rate(float): Learning rate to start training the model. 
             load_from_file(bool): load parameters of model from file
             model_chkpt_file: tf model file containing params
                   
@@ -51,7 +50,6 @@ class NeuralNetwork(object):
         self.model_name = model_name
         self.dataset = dataset
         self.transform = transform
-        self.initial_learning_rate = initial_learning_rate
         
         if dataset.lower() == 'mnist':
             self.num_classes = 10
