@@ -65,7 +65,7 @@ def iht(y,t, T=100,k=20,transform='dct'):
         for i in range(T):
             x_hat = get_topk_vec(dct((y - e_hat), norm='ortho'), k)
             e_hat = get_topk_vec(y - idct(x_hat, norm='ortho'), t)   
-    return x_hat - e_hat,e_hat
+    return x_hat,e_hat
 
 
 def socp(y, D, n=784, eta=2.7):
