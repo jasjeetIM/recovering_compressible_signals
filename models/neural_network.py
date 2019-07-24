@@ -14,7 +14,7 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras.callbacks import ReduceLROnPlateau
 from keras.preprocessing.image import ImageDataGenerator
 from cleverhans.utils_keras import KerasModelWrapper
-from cleverhans.attacks import CarliniWagnerL2, CarliniWagnerL0, DeepFool, SaliencyMapMethod
+from cleverhans.attacks import CarliniWagnerL2, CarliniWagnerL0, DeepFool, SaliencyMapMethod,FastGradientMethod,BasicIterativeMethod
 
 import numpy as np
 import os, time, math, gc
@@ -488,6 +488,26 @@ class NeuralNetwork(object):
                            'clip_max': clip_max,
                            'y_target': y_tar}
             x_adv = jsma.generate_np(x, **jsma_params)
+            
+        elif attack == 'FGSM':
+            K.set_learning_phase(0)
+            fgsm = FastGradientMethod(model,sess=self.sess)
+            fgsm_params = {'eps':0.15,
+                           'clip_min': clip_min, 
+                           'clip_max': clip_max,
+                           'y_target': y_tar}
+            x_adv = fgsm.generate_np(x, **fgsm_params)
+        
+        elif attack == 'BIM':
+            K.set_learning_phase(0)
+            fgsm = BasicIterativeMethod(model,sess=self.sess)
+            fgsm_params = {'eps':0.015,
+                            'eps_iter':0.005,
+                           'nb_iter':100,
+                           'clip_min': clip_min, 
+                           'clip_max': clip_max,
+                           'y_target': y_tar}
+            x_adv = fgsm.generate_np(x, **fgsm_params)
         
             
         return x_adv
@@ -512,7 +532,12 @@ class NeuralNetwork(object):
             x_perturbed = self.get_adversarial_version(x,y,attack='DF', nb_candidate=nb_candidate)
         elif perturbation == 'JSMA':
             x_perturbed = self.get_adversarial_version(x,y,attack='JSMA')
+        elif perturbation == 'FGSM':
+            x_perturbed = self.get_adversarial_version(x,y,attack='FGSM')
+        elif perturbation == 'BIM':
+            x_perturbed = self.get_adversarial_version(x,y,attack='BIM')
         return x_perturbed
+    
     
  
     #Random sampling from dataset

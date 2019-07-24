@@ -14,7 +14,7 @@ import scipy.linalg as la
 
 
 def get_top_k(X,k):
-    idx = bn.argpartition(X, X.size-k, axis=None)[-k:]
+    idx = bn.argpartition(np.absolute(X), X.size-k, axis=None)[-k:]
     width = X.shape[1]
     idx = np.array([divmod(i, width) for i in idx])
     top = np.zeros((X.shape)) + 1j*0
@@ -31,7 +31,7 @@ def get_matrix(n,tf='dct'):
     return F
 
 def get_top_and_bot_k(X,k):
-    idx = bn.argpartition(X, X.size-k, axis=None)[-k:]
+    idx = bn.argpartition(np.absolute(X), X.size-k, axis=None)[-k:]
     width = X.shape[1]
     idx = np.array([divmod(i, width) for i in idx])
     top = np.zeros((X.shape)) + 1j*0
@@ -43,13 +43,13 @@ def get_top_and_bot_k(X,k):
 
 
 def get_top_bot_k_vec(x,k):
-    ind = np.argpartition(x, -k)[-k:]
+    ind = np.argpartition(np.absolute(x), -k)[-k:]
     temp = np.zeros(x.shape)
     temp[ind] = x[ind]
     return temp, x - temp
 
 def get_topk_vec(x,k):
-    ind = np.argpartition(x, -k)[-k:]
+    ind = np.argpartition(np.absolute(x), -k)[-k:]
     temp = np.zeros(x.shape)
     temp[ind] = x[ind]
     return temp
@@ -82,6 +82,18 @@ def socp(y, D, n=784, eta=2.7):
 
     return x.value
 
+
+
+def dantzig(y, D, n=784, eta_1=0.16, eta_2=6.0):
+    x = cp.Variable(n)
+    b = cp.Variable(n)
+    obj = cp.Minimize(cp.norm(x,1))
+    constraints = [ b <= x, -b <= x, D.T*(y - D*b) <= eta_2, -D.T*(y - D*b) <=eta_2, (y-D*b)<=eta_1, (D*b-y) <=eta_1]
+    prob = cp.Problem(obj, constraints)
+
+    print("Optimal value", prob.solve(solver='ECOS'))
+    return b.value
+
 def avg_l2_dist(orig, adv):
     """Get the mean l2 distortion between two orig and adv images"""
     l2_dist = 0.0
@@ -102,6 +114,18 @@ def avg_l0_dist(orig, adv):
             diff= np.abs(orig[i] - adv[i])
             l0_dist+=len(np.where(diff.flatten()>0.0001)[0])
         return l0_dist/orig.shape[0]
+    else:
+        return np.nan
+    
+    
+def avg_linf_dist(orig, adv):
+    """Get the mean l2 distortion between two orig and adv images"""
+    linf_dist = 0.0
+    num_ = orig.shape[0]
+    if num_ > 0:
+        for i in range(orig.shape[0]):
+            linf_dist+= np.linalg.norm(orig[i].flatten() - adv[i].flatten(),ord=np.inf)
+        return linf_dist/orig.shape[0]
     else:
         return np.nan
     
